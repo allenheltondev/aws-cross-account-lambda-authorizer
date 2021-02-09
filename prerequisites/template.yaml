@@ -1,0 +1,35 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Prerequisite stack with resources needed in every AWS Account
+
+Resources:
+  # In order to use cross account lambda authorizer, we need to add the following function and CFN macro to the account to remove a permission
+  # due to a defect in SAM. https://github.com/aws/serverless-application-model/issues/1637
+  RemoveAuthorizerLambdaPermissionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: CFN Macro function that removes AWS::Lambda::Permission resources associated with lambda authorizers
+      Runtime: nodejs12.x
+      Handler: index.handler
+      InlineCode: |
+        exports.handler = async function(event, context){
+          let keysToRemove = Object.keys(event.fragment.Resources).filter(key => key.endsWith('AuthorizerPermission'));
+          for(let i = 0; i < keysToRemove.length; i++){
+            delete event.fragment.Resources[keysToRemove[i]];
+          }         
+
+          return {
+            requestId: event.requestId,
+            status: 'success',
+            fragment: event.fragment
+            };
+        }
+  
+  RemoveAuthorizerLambdaPermissionsMacro:
+    Type: AWS::CloudFormation::Macro
+    Properties:
+      Name: RemoveAuthorizerLambdaPermissions
+      Description: Removes AWS::Lambda::Permission resources associated with lambda authorizers
+      FunctionName:
+        Ref: RemoveAuthorizerLambdaPermissionsFunction

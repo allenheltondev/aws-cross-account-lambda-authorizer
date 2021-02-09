@@ -1,0 +1,66 @@
+openapi: 3.0.0
+info:
+  title: Consumer Service
+  description: Example Consumer API of an AWS Cross Account Lambda Authorizer
+  version: 1.0.0
+
+servers:
+  - url: https://www.example.com
+    description: qa  
+
+x-amazon-apigateway-request-validators:
+  Validate All:
+    validateRequestParameters: true
+    validateRequestBody: true
+x-amazon-apigateway-gateway-responses:
+  BAD_REQUEST_BODY:
+    statusCode: 400
+    responseTemplates:
+      application/json: '{ "message": "$context.error.validationErrorString" }'
+  UNAUTHORIZED:
+    statusCode: 401
+    responseTemplates:
+      application/json: '{ "message": "Unauthorized" }'
+    responseParameters:
+      gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+  ACCESS_DENIED:
+    statusCode: 401
+    responseTemplates:
+      application/json: '{ "message": "Unauthorized" }'
+    responseParameters:
+      gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+      
+paths:
+  /hello-world:    
+    get:
+      summary: Example endpoint in the consumer service
+      responses:
+        200:
+          $ref: '#/components/responses/OK'
+      x-amazon-apigateway-request-validator: Validate All
+      x-amazon-apigateway-integration:
+        responses:
+          200:
+            statusCode: 200
+        passthroughBehavior: when_no_match
+        requestTemplates:
+          application/json: |
+            {
+              'statusCode': 200
+            }
+        type: mock    
+ 
+components:   
+  responses:
+    OK: #200
+      description: Hello world was successful
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: Hello World!
+            required:
+              - message    

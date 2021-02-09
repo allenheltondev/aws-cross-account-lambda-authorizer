@@ -1,0 +1,30 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: [ AWS::Serverless-2016-10-31, RemoveAuthorizerLambdaPermissions ]
+Description: >
+  Comsumer Stack. This AWS Account will consume the authorizer created in the *authorizer stack*
+
+Parameters:
+  AuthorizerAccountId:
+    Type: String
+
+Resources: 
+  ConsumerServiceApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: test
+      Auth:
+        DefaultAuthorizer: LambdaAuthorizer
+        AddDefaultAuthorizerToCorsPreflight: false
+        Authorizers:
+          LambdaAuthorizer:
+            FunctionPayloadType: REQUEST
+            FunctionArn: !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AuthorizerAccountId}:function:LambdaAuthorizer
+            Identity:
+              Headers:
+                - Authorization
+              ReauthorizeEvery: 3600
+      DefinitionBody:
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location: ./consumer-service-openapi.yaml

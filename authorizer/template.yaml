@@ -1,0 +1,54 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Authorizer Stack. Used to create the lambda authorizer and add permissions for consuming AWS Accounts
+
+Parameters:
+  ConsumerOneAccountId:
+    Type: String
+  ConsumerTwoAccountId:
+    Type: String
+
+Resources:
+  LambdaAuthorizerCrossAccountFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/lambda-authorizer
+      Runtime: nodejs12.x
+      Handler: lambda-authorizer.lambdaHandler
+      Role: !GetAtt LambdaAuthorizerRole.Arn
+      FunctionName: LambdaAuthorizer      
+
+  LambdaAuthorizerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      # Any permissions you need for your specific authorizer to run go here
+      # Remember to practice the Principle of Least Privilege (POLP) 
+      # https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html#grant-least-privilege
+
+  ConsumerOneAuthorizerPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref LambdaAuthorizerCrossAccountFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${ConsumerOneAccountId}:*/authorizers/*
+
+  ConsumerTwoAuthorizerPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref LambdaAuthorizerCrossAccountFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${ConsumerTwoAccountId}:*/authorizers/*
